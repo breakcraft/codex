@@ -134,7 +134,7 @@ async fn seed_previous_turn_settings(
     previous_turn_settings: PreviousTurnSettings,
 ) {
     session
-        .record_regular_turn_context(turn_context_item_with_previous_turn_settings(
+        .note_model_visible_turn_context(turn_context_item_with_previous_turn_settings(
             turn_context,
             previous_turn_settings,
         ))
@@ -148,7 +148,7 @@ async fn seed_previous_turn_settings_without_reference(
 ) {
     seed_previous_turn_settings(session, turn_context, previous_turn_settings).await;
     let mut state = session.state.lock().await;
-    state.set_reference_context_item(None);
+    state.history.set_reference_context_item(None);
 }
 
 fn assistant_message(text: &str) -> ResponseItem {
@@ -1241,7 +1241,9 @@ async fn thread_rollback_drops_last_turn_from_history() {
     sess.persist_rollout_items(&rollout_items).await;
     {
         let mut state = sess.state.lock().await;
-        state.set_reference_context_item(Some(tc.to_turn_context_item()));
+        state
+            .history
+            .set_reference_context_item(Some(tc.to_turn_context_item()));
     }
 
     handlers::thread_rollback(&sess, "sub-1".to_string(), 1).await;
@@ -3691,7 +3693,9 @@ async fn build_initial_context_uses_previous_realtime_state() {
     let previous_context_item = turn_context.to_turn_context_item();
     {
         let mut state = session.state.lock().await;
-        state.set_reference_context_item(Some(previous_context_item));
+        state
+            .history
+            .set_reference_context_item(Some(previous_context_item));
     }
     let resumed_context = session.build_initial_context(&turn_context).await;
     let resumed_developer_texts = developer_input_texts(&resumed_context);
@@ -3915,7 +3919,7 @@ async fn record_context_updates_and_set_reference_context_item_reinjects_full_co
         .await;
     {
         let mut state = session.state.lock().await;
-        state.set_reference_context_item(None);
+        state.history.set_reference_context_item(None);
     }
     session
         .replace_history(vec![compacted_summary.clone()], None)
@@ -3946,7 +3950,9 @@ async fn record_context_updates_and_set_reference_context_item_emits_model_switc
     let previous_context_item = previous_context.to_turn_context_item();
     {
         let mut state = session.state.lock().await;
-        state.set_reference_context_item(Some(previous_context_item.clone()));
+        state
+            .history
+            .set_reference_context_item(Some(previous_context_item.clone()));
     }
     let config = session.get_config().await;
     let recorder = RolloutRecorder::new(
@@ -4078,7 +4084,7 @@ async fn record_context_updates_and_set_reference_context_item_persists_full_rei
         .await;
     {
         let mut state = session.state.lock().await;
-        state.set_reference_context_item(None);
+        state.history.set_reference_context_item(None);
     }
 
     seed_previous_turn_settings_without_reference(
@@ -4120,7 +4126,7 @@ async fn run_user_shell_command_does_not_set_reference_context_item() {
     let (session, _turn_context, rx) = make_session_and_context_with_rx().await;
     {
         let mut state = session.state.lock().await;
-        state.set_reference_context_item(None);
+        state.history.set_reference_context_item(None);
     }
 
     handlers::run_user_shell_command(&session, "sub-id".to_string(), "echo shell".to_string())
